@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Avaliação e Feedback</title>
+    
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #1976d2;
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-main: #202124;
+            --text-muted: #5f6368;
+            --border-color: #e0e0e0;
+            
+            /* Cores de Feedback */
+            --pos-color: #6aa84f;
+            --neu-color: #b45f06;
+            --neg-color: #d32f2f;
+            --kpi-bg: #f8f9fa;
+            
+            /* Tópicos Cores */
+            --topic-infra: #fce8e6;
+            --topic-org: #fef7e0;
+            --topic-clarity: #e8f0fe;
+            --topic-mat: #e6f4ea;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: block; min-height: 100vh; }
+
+        /* --- CONTROLE DE TELAS (SPA) --- */
+        .screen { display: none; width: 100%; animation: fadeIn 0.3s ease-in; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- TIPOGRAFIA E UTILITÁRIOS --- */
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 16px; }
+        h2 { font-size: 18px; font-weight: 500; margin-bottom: 12px; }
+        p { line-height: 1.5; color: var(--text-muted); }
+        .text-bold { font-weight: 700; color: var(--text-main); }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .mt-4 { margin-top: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+
+        /* --- BOTÕES E INPUTS --- */
+        button {
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 10px 20px; border-radius: 4px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.2s;
+        }
+        button:hover { background-color: #1565c0; }
+        input, select, textarea {
+            width: 100%; padding: 12px; border: 1px solid var(--border-color);
+            border-radius: 4px; margin-bottom: 16px; font-family: inherit; outline: none;
+        }
+        select { cursor: pointer; background: #fff; }
+
+        /* --- COMPONENTES GERAIS --- */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 24px; border: 1px solid var(--border-color); }
+        .app-header {
+            background: var(--card-bg); border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .avatar {
+            width: 36px; height: 36px; border-radius: 50%; background-color: var(--primary-color);
+            color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        /* --- TELA 1: LOGIN --- */
+        .login-wrapper { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #fff; }
+        .login-box { width: 100%; max-width: 400px; padding: 40px; text-align: center; }
+        .login-links { display: flex; justify-content: space-between; font-size: 13px; margin-top: 16px; }
+        .login-links a { color: var(--primary-color); cursor: pointer; }
+
+        /* --- TELA 2: ALUNO --- */
+        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        .class-meta { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+        .likert-scale {
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 20px 0 40px 0; background: var(--kpi-bg); padding: 20px; border-radius: 8px;
+        }
+        .likert-option { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer;}
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content { background: white; padding: 40px; border-radius: 12px; text-align: center; max-width: 400px; }
+        .modal-icon { font-size: 48px; color: var(--pos-color); margin-bottom: 16px; }
+
+        /* --- TELAS 3 & 4: DASHBOARDS --- */
+        .dashboard-container { padding: 32px; max-width: 1400px; margin: 0 auto; }
+        .header-info { margin-bottom: 24px; font-size: 14px; color: var(--text-main); }
+        .section-label { font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+        
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: var(--kpi-bg); padding: 16px; border-radius: 8px; border: none; }
+        .kpi-title { font-size: 13px; color: var(--text-muted); }
+        .kpi-value { font-size: 28px; font-weight: 700; margin: 4px 0; }
+        .kpi-sub { font-size: 12px; display: flex; align-items: center; gap: 4px;}
+        .text-neg { color: var(--neg-color); }
+        .text-pos { color: var(--pos-color); }
+
+        .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .chart-container { position: relative; height: 280px; width: 100%; }
+        
+        .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+        
+        .topics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .topic-box { padding: 16px; border-radius: 8px; min-height: 100px;}
+        .topic-infra { background-color: var(--topic-infra); }
+        .topic-org { background-color: var(--topic-org); }
+        .topic-clarity { background-color: var(--topic-clarity); }
+        .topic-mat { background-color: var(--topic-mat); }
+        .topic-title { font-weight: 700; margin-bottom: 4px; }
+        .topic-infra .topic-title { color: #a52a2a; }
+        .topic-org .topic-title { color: #b45f06; }
+        .topic-clarity .topic-title { color: #1976d2; }
+        .topic-mat .topic-title { color: #38761d; }
+
+        .alert-item { display: flex; align-items: flex-start; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        .alert-item:last-child { border-bottom: none; }
+        .alert-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;}
+        .icon-neg { background: var(--topic-infra); color: var(--neg-color); }
+        .icon-neu { background: var(--topic-org); color: var(--neu-color); }
+        .icon-pos { background: var(--topic-mat); color: var(--pos-color); }
+
+        .footer { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+        
+        .dev-nav {
+            position: fixed; bottom: 20px; right: 20px; background: #333; padding: 10px;
+            border-radius: 8px; display: flex; gap: 10px; z-index: 9999;
+        }
+        .dev-nav button { font-size: 11px; padding: 5px 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- NAV PARA PROTÓTIPO (Alterna visualizações) -->
+    <div class="dev-nav">
+        <button onclick="navigate('login')">Login</button>
+        <button onclick="navigate('student')">Tela Aluno</button>
+        <button onclick="navigate('teacher')">Tela Professor</button>
+        <button onclick="navigate('manager')">Tela Gestor</button>
+    </div>
+
+    <!-- TELA 1: LOGIN -->
+    <div id="login-screen" class="screen active">
+        <div class="login-wrapper">
+            <div class="login-box card">
+                <h2 style="margin-bottom: 24px;">Sistema de feedback</h2>
+                <input type="text" placeholder="Usuário" id="login-user">
+                <input type="password" placeholder="Senha">
+                <button style="width: 100%; margin-top: 8px;" onclick="simulateLogin()">Entrar</button>
+                <div class="login-links">
+                    <a onclick="alert('Funcionalidade mockada: Redefinição enviada!')">Esqueceu a senha?</a>
+                    <a onclick="alert('Funcionalidade mockada: Tela de cadastro')">Criar conta</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TELA 2: ALUNO (João) -->
+    <div id="student-screen" class="screen">
+        <header class="app-header">
+            <div class="flex items-center" style="gap: 16px;">
+                <span class="material-icons" style="color: var(--primary-color);">school</span>
+                <span style="font-weight: 500;">Sistema de feedback</span>
+            </div>
+            <div class="flex items-center" style="gap: 16px;">
+                <span class="material-icons" style="color: var(--text-muted); cursor:pointer;">search</span>
+                <span class="material-icons" style="color: var(--text-muted); cursor:pointer;">settings</span>
+                <div class="user-profile">
+                    <div class="avatar">J</div>
+                    <span style="font-size: 14px;">João</span>
+                    <span class="material-icons" style="font-size: 18px;" onclick="navigate('login')">logout</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="class-meta">Introdução à Programação • Quarta-feira, 27 de maio de 2026</div>
+            <h1 style="font-size: 32px;">Feedback da aula</h1>
+            <p style="margin-bottom: 32px;">
+                Este é um formulário para feedback da aula da disciplina <span class="text-bold">Introdução à Programação</span>, referente à aula <span class="text-bold">Quarta-feira, 27 de maio de 2026</span>. Este é um ambiente seguro, sinta-se à vontade para elogiar pontos fortes e nos direcionar para a intervenção estratégica em pontos de melhoria.
+            </p>
+
+            <div class="card">
+                <h2>Avaliação da aula <span style="color: var(--neg-color);">*</span></h2>
+                <div class="likert-scale">
+                    <span style="font-size: 14px; color: var(--text-muted);">Insatisfatória</span>
+                    <label class="likert-option"><input type="radio" name="likert" value="1"> 1</label>
+                    <label class="likert-option"><input type="radio" name="likert" value="2"> 2</label>
+                    <label class="likert-option"><input type="radio" name="likert" value="3"> 3</label>
+                    <label class="likert-option"><input type="radio" name="likert" value="4"> 4</label>
+                    <label class="likert-option"><input type="radio" name="likert" value="5"> 5</label>
+                    <span style="font-size: 14px; color: var(--text-muted);">Excelente</span>
+                </div>
+
+                <h2>Comentários <span style="font-size: 13px; color: var(--text-muted); font-weight: normal;">(Opcional)</span></h2>
+                <textarea rows="4" placeholder="O que você achou da aula de hoje?"></textarea>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button onclick="submitForm()">Enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SUCESSO -->
+    <div id="success-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="material-icons modal-icon">check_circle</span>
+            <h2>Feedback Enviado!</h2>
+            <p>Recebemos o seu formulário, muito obrigado por contribuir para tornar nosso ambiente melhor!</p>
+            <button class="mt-4" onclick="closeModal()">Fechar</button>
+        </div>
+    </div>
+
+    <!-- TELA 3: PROFESSOR (José) -->
+    <div id="teacher-screen" class="screen">
+        <header class="app-header">
+            <div class="flex items-center" style="gap: 16px;">
+                <span class="material-icons" style="color: var(--primary-color);">analytics</span>
+                <span style="font-weight: 500;">Sistema de feedback</span>
+            </div>
+            <div class="user-profile">
+                <div class="avatar" style="background-color: #5f6368;">J</div>
+                <span style="font-size: 14px;">José</span>
+                <span class="material-icons" style="font-size: 18px;" onclick="navigate('login')">logout</span>
+            </div>
+        </header>
+
+        <div class="dashboard-container">
+            <h1 style="font-size: 36px; margin-bottom: 8px;">Gestão de indicadores de satisfação</h1>
+            
+            <p style="margin-bottom: 32px;">
+                Este relatório apresenta os resultados obtidos através de uma abordagem híbrida utilizando modelos 
+                <span class="text-bold">Transformers</span> (BERTimbau e BERTopic) para analisar feedbacks textuais de estudantes. O objetivo é 
+                transformar dados qualitativos brutos em indicadores quantitativos e temas acionáveis para a tomada de decisão pedagógica.
+            </p>
+
+            <div class="header-info">
+                <div><span class="text-bold">Disciplina:</span> Introdução à Programação</div>
+                <div><span class="text-bold">Período:</span> Semestre 2026.1 - 2.109 registros analisados</div>
+            </div>
+
+            <div class="section-label">Indicadores Gerais</div>
+            <div class="kpi-grid">
+                <div class="card kpi-card">
+                    <div class="kpi-title">Satisfação geral</div>
+                    <div class="kpi-value">73%</div>
+                    <div class="kpi-sub text-neg">▼ 8pp vs início do curso</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title">Feedbacks negativos</div>
+                    <div class="kpi-value">23%</div>
+                    <div class="kpi-sub" style="color: var(--text-muted);">Aulas 11 e 32 críticas</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title">Precisão do modelo</div>
+                    <div class="kpi-value">74%</div>
+                    <div class="kpi-sub text-pos">▲ 5pp vs baseline</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title">Tópicos identificados</div>
+                    <div class="kpi-value">4</div>
+                    <div class="kpi-sub" style="color: var(--text-muted);">Infraestrutura predomina</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="card">
+                    <h2>Evolução do sentimento ao longo das aulas</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Média móvel de score (0 = negativo, 1 = neutro, 2 = positivo)</p>
+                    <div class="chart-container"><canvas id="profEvolutionChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h2>Distribuição de sentimentos</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Dataset balanceado final</p>
+                    <div class="chart-container"><canvas id="profDistributionChart"></canvas></div>
+                </div>
+            </div>
+            
+            <div class="bottom-grid">
+                <div class="card">
+                    <h2>Tópicos recorrentes nos feedbacks</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Identificados via BERTopic</p>
+                    <div class="topics-grid">
+                        <div class="topic-box topic-infra">
+                            <div class="topic-title">Infraestrutura</div><div style="font-size: 12px; color: #5f6368;">Internet, sala, calor, conectividade</div>
+                        </div>
+                        <div class="topic-box topic-org">
+                            <div class="topic-title">Organização</div><div style="font-size: 12px; color: #5f6368;">Tempo de aula, planejamento</div>
+                        </div>
+                        <div class="topic-box topic-clarity">
+                            <div class="topic-title">Clareza</div><div style="font-size: 12px; color: #5f6368;">Explicação, compreensão do conteúdo</div>
+                        </div>
+                        <div class="topic-box topic-mat">
+                            <div class="topic-title">Materiais</div><div style="font-size: 12px; color: #5f6368;">Recursos didáticos, qualidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="section-label">Alertas Pedagógicos</div>
+                    <div>
+                        <div class="alert-item">
+                            <div class="alert-icon icon-neg">!</div>
+                            <div>
+                                <div class="text-bold" style="font-size: 14px;">Satisfação em queda progressiva</div>
+                                <div style="font-size: 13px; color: var(--text-muted);">Curva de experiência decrescente — risco de evasão</div>
+                            </div>
+                        </div>
+                        <div class="alert-item">
+                            <div class="alert-icon icon-pos">✓</div>
+                            <div>
+                                <div class="text-bold" style="font-size: 14px;">Início do curso bem avaliado</div>
+                                <div style="font-size: 13px; color: var(--text-muted);">Aulas 1-10 com alto índice de feedbacks positivos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">Análise Feedback Institucional · 2026</div>
+        </div>
+    </div>
+
+    <!-- TELA 4: GESTOR (Maria) -->
+    <div id="manager-screen" class="screen">
+        <header class="app-header">
+            <div class="flex items-center" style="gap: 16px;">
+                <span class="material-icons" style="color: var(--primary-color);">dashboard</span>
+                <span style="font-weight: 500;">Sistema de feedback</span>
+            </div>
+            <div class="user-profile">
+                <div class="avatar" style="background-color: var(--neu-color);">M</div>
+                <span style="font-size: 14px;">Maria</span>
+                <span class="material-icons" style="font-size: 18px;" onclick="navigate('login')">logout</span>
+            </div>
+        </header>
+
+        <div class="dashboard-container">
+            <div class="flex justify-between items-center mb-4">
+                <h1 style="font-size: 32px; margin: 0;">Gestão de indicadores de satisfação</h1>
+                <!-- Filtro Dinâmico -->
+                <select id="managerFilter" style="width: 300px; margin: 0;" onchange="updateManagerData()">
+                    <option value="global">Visão Global Institucional</option>
+                    <option value="intro">Introdução à Programação (Turma A)</option>
+                    <option value="pbl">PBL Aplicado à Computação (Turma B)</option>
+                </select>
+            </div>
+            
+            <div class="kpi-grid">
+                <div class="card kpi-card">
+                    <div class="kpi-title" id="kpi1-title">Total de Avaliações</div>
+                    <div class="kpi-value" id="kpi1-val">8.452</div>
+                    <div class="kpi-sub" id="kpi1-sub">Dados Gerais do Semestre</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title" id="kpi2-title">Satisfação Geral</div>
+                    <div class="kpi-value" id="kpi2-val">68%</div>
+                    <div class="kpi-sub" id="kpi2-sub">Média consolidada</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title" id="kpi3-title">Feedbacks Negativos</div>
+                    <div class="kpi-value" id="kpi3-val">25%</div>
+                    <div class="kpi-sub text-neg" id="kpi3-sub">Atenção requerida</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-title" id="kpi4-title">Tópicos Identificados</div>
+                    <div class="kpi-value" id="kpi4-val">6</div>
+                    <div class="kpi-sub" id="kpi4-sub" style="color: var(--text-muted);">Mapeamento via Transformers</div>
+                </div>
+            </div>
+
+            <!-- Gráficos do Professor -->
+            <div class="charts-grid">
+                <div class="card">
+                    <h2>Evolução do sentimento ao longo das aulas</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Média móvel de score (0 = negativo, 1 = neutro, 2 = positivo)</p>
+                    <div class="chart-container"><canvas id="mgrEvolutionChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h2>Distribuição de sentimentos</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Dataset balanceado final</p>
+                    <div class="chart-container"><canvas id="mgrDistributionChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Gráficos Globais da Gestão -->
+            <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="card">
+                    <h2>Comparativo de Sentimento entre Turmas</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Análise cruzada de satisfação (Score Médio)</p>
+                    <div class="chart-container"><canvas id="mgrComparisonChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h2>Impacto dos Tópicos por Disciplina</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Principais ofensores detectados pelo BERTopic</p>
+                    <div class="chart-container"><canvas id="mgrRadarChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Tópicos e Alertas (Replicado para o Gestor) -->
+            <div class="bottom-grid">
+                <div class="card">
+                    <h2>Tópicos recorrentes nos feedbacks</h2>
+                    <p style="font-size: 13px; margin-bottom: 16px;">Identificados via BERTopic</p>
+                    <div class="topics-grid">
+                        <div class="topic-box topic-infra">
+                            <div class="topic-title">Infraestrutura</div><div style="font-size: 12px; color: #5f6368;">Internet, sala, calor, conectividade</div>
+                        </div>
+                        <div class="topic-box topic-org">
+                            <div class="topic-title">Organização</div><div style="font-size: 12px; color: #5f6368;">Tempo de aula, planejamento</div>
+                        </div>
+                        <div class="topic-box topic-clarity">
+                            <div class="topic-title">Clareza</div><div style="font-size: 12px; color: #5f6368;">Explicação, compreensão do conteúdo</div>
+                        </div>
+                        <div class="topic-box topic-mat">
+                            <div class="topic-title">Materiais</div><div style="font-size: 12px; color: #5f6368;">Recursos didáticos, qualidade</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="section-label">Alertas Pedagógicos</div>
+                    <div>
+                        <div class="alert-item">
+                            <div class="alert-icon icon-neg">!</div>
+                            <div>
+                                <div class="text-bold" style="font-size: 14px;">Satisfação em queda progressiva</div>
+                                <div style="font-size: 13px; color: var(--text-muted);">Curva de experiência decrescente — risco de evasão</div>
+                            </div>
+                        </div>
+                        <div class="alert-item">
+                            <div class="alert-icon icon-pos">✓</div>
+                            <div>
+                                <div class="text-bold" style="font-size: 14px;">Início do curso bem avaliado</div>
+                                <div style="font-size: 13px; color: var(--text-muted);">Aulas 1-10 com alto índice de feedbacks positivos</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">Análise Feedback Institucional · 2026</div>
+        </div>
+    </div>
+
+    <!-- --- JAVASCRIPT --- -->
+    <script>
+        // --- NAVEGAÇÃO E MODAL ---
+        function navigate(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId + '-screen').classList.add('active');
+            
+            if(screenId === 'teacher') renderTeacherCharts();
+            if(screenId === 'manager') {
+                document.getElementById('managerFilter').value = 'global'; // Reseta o filtro
+                updateManagerData(); // Renderiza com dados globais
+            }
+        }
+        function simulateLogin() { navigate('student'); }
+        function submitForm() { document.getElementById('success-modal').style.display = 'flex'; }
+        function closeModal() {
+            document.getElementById('success-modal').style.display = 'none';
+            document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+            document.querySelector('textarea').value = '';
+        }
+
+        // --- MOCK DE DADOS ---
+        const mockData = {
+            global: {
+                kpi: { v1: "8.452", s1: "Dados Gerais do Semestre", v2: "68%", s2: "Média consolidada", v3: "25%", s3: "Atenção requerida", v4: "6", s4: "Diversidade de temas" },
+                evo: [1.4, 1.45, 1.5, 1.4, 1.4, 1.2, 1.2, 1.3, 1.2, 1.1, 1.15, 1.0, 1.1, 1.1, 1.2],
+                dist: [45, 30, 25]
+            },
+            intro: {
+                kpi: { v1: "2.109", s1: "Turma A", v2: "73%", s2: "▼ 8pp vs início", v3: "23%", s3: "Aulas 11 e 32 críticas", v4: "4", s4: "Infraestrutura predomina" },
+                evo: [1.6, 1.45, 1.5, 1.6, 1.45, 1.5, 1.45, 1.45, 1.45, 0.7, 0.72, 0.6, 0.62, 0.6, 0.65],
+                dist: [38, 39, 23]
+            },
+            pbl: {
+                kpi: { v1: "1.542", s1: "Turma B", v2: "85%", s2: "▲ 5pp vs semestre ant.", v3: "10%", s3: "Dentro da meta", v4: "5", s4: "Metodologia elogiada" },
+                evo: [1.6, 1.7, 1.8, 1.7, 1.8, 1.9, 1.8, 1.7, 1.8, 1.9, 1.8, 1.7, 1.8, 1.9, 2.0],
+                dist: [60, 30, 10]
+            }
+        };
+
+        // --- CHART.JS SETUP ---
+        Chart.defaults.font.family = "'Roboto', sans-serif";
+        Chart.defaults.color = '#5f6368';
+        
+        let profEvo, profDist;
+        let mgrEvo, mgrDist, mgrComp, mgrRadar;
+
+        const labelsAulas = ['A1','A3','A5','A7','A9','A11','A13','A15','A17','A19','A21','A23','A25','A27','A29'];
+
+        function renderTeacherCharts() {
+            if(profEvo) profEvo.destroy();
+            profEvo = new Chart(document.getElementById('profEvolutionChart').getContext('2d'), createLineConfig(mockData.intro.evo));
+
+            if(profDist) profDist.destroy();
+            profDist = new Chart(document.getElementById('profDistributionChart').getContext('2d'), createDoughnutConfig(mockData.intro.dist));
+        }
+
+        function updateManagerData() {
+            const filter = document.getElementById('managerFilter').value;
+            const data = mockData[filter];
+
+            document.getElementById('kpi1-val').innerText = data.kpi.v1; document.getElementById('kpi1-sub').innerText = data.kpi.s1;
+            document.getElementById('kpi2-val').innerText = data.kpi.v2; document.getElementById('kpi2-sub').innerText = data.kpi.s2;
+            document.getElementById('kpi3-val').innerText = data.kpi.v3; document.getElementById('kpi3-sub').innerText = data.kpi.s3;
+            document.getElementById('kpi4-val').innerText = data.kpi.v4; document.getElementById('kpi4-sub').innerText = data.kpi.s4;
+
+            if(mgrEvo) mgrEvo.destroy();
+            mgrEvo = new Chart(document.getElementById('mgrEvolutionChart').getContext('2d'), createLineConfig(data.evo));
+
+            if(mgrDist) mgrDist.destroy();
+            mgrDist = new Chart(document.getElementById('mgrDistributionChart').getContext('2d'), createDoughnutConfig(data.dist));
+
+            if(!mgrComp) {
+                mgrComp = new Chart(document.getElementById('mgrComparisonChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Intro. Prog.', 'PBL Comp.', 'Eng. Requisitos'],
+                        datasets: [{ data: [1.6, 1.8, 0.6], backgroundColor: ['#1976d2', '#6aa84f', '#d32f2f'], borderRadius: 4 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 2.0 } } }
+                });
+            }
+            if(!mgrRadar) {
+                mgrRadar = new Chart(document.getElementById('mgrRadarChart').getContext('2d'), {
+                    type: 'radar',
+                    data: {
+                        labels: ['Infraestrutura', 'Organização', 'Clareza', 'Materiais', 'Avaliação'],
+                        datasets: [
+                            { label: 'Intro. Programação', data: [60, 90, 85, 80, 75], backgroundColor: 'rgba(25, 118, 210, 0.2)', borderColor: '#1976d2', borderWidth: 2 },
+                            { label: 'Eng. Req (Crítica)', data: [85, 40, 45, 50, 30], backgroundColor: 'rgba(211, 47, 47, 0.2)', borderColor: '#d32f2f', borderWidth: 2 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100 } } }
+                });
+            }
+        }
+
+        function createLineConfig(dataPoints) {
+            return {
+                type: 'line',
+                data: {
+                    labels: labelsAulas,
+                    datasets: [{
+                        label: 'Score médio', data: dataPoints, borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.1)', borderWidth: 2, pointRadius: 3,
+                        pointBackgroundColor: '#1976d2', fill: true, tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { min: 0, max: 2.0, ticks: { stepSize: 0.5 }, grid: { color: '#e0e0e0', borderDash: [5, 5] } }, x: { grid: { display: false } } }
+                }
+            };
+        }
+
+        function createDoughnutConfig(dataPoints) {
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positivo', 'Neutro', 'Negativo'],
+                    datasets: [{ data: dataPoints, backgroundColor: ['#6aa84f', '#b45f06', '#d32f2f'], borderWidth: 0, cutout: '70%' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } } }
+            };
+        }
+    </script>
+</body>
+</html>
